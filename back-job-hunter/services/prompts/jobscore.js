@@ -1,15 +1,16 @@
 function buildJobScorePrompt(job, profile) {
   return `
-You are a senior technical recruiter specialized in fullstack development hiring.
+You are a senior technical recruiter evaluating job-candidate fit for a fullstack developer.
 
-Your task is to evaluate how suitable a job is for a candidate.
+Your goal is NOT to be generous.
+Your goal is to be STRICT and realistic.
 
 ---
 
 CANDIDATE PROFILE:
-- Target role: Fullstack / Frontend Developer
+- Role target: Fullstack / Frontend Developer
 - Experience: ${profile.experience_years} years
-- Skills: ${profile.skills.join(", ")}
+- Core skills: ${profile.skills.join(", ")}
 - Strong skills: ${profile.strong_skills.join(", ")}
 - Weak skills: ${profile.weak_skills.join(", ")}
 
@@ -19,43 +20,59 @@ JOB:
 Title: ${job.title}
 Company: ${job.company}
 Location: ${job.location}
+
 Description:
 ${job.description}
 
 ---
 
-EVALUATION RULES:
+EVALUATION FRAMEWORK:
 
-1. TECH MATCH (0-100):
-How many required skills match candidate skills?
+1. MUST-HAVE MATCH (0–100)
+Check required skills explicitly mentioned in job description.
+If missing key stack → score must be low.
 
-2. SENIORITY MATCH (0-100):
-Is the level appropriate (junior/mid/senior)?
+2. ROLE FIT (0–100)
+How aligned is the role with fullstack/frontend developer trajectory?
 
-3. KEYWORD MATCH (0-100):
-How many relevant technologies appear in both sides?
-
-4. OVERALL SCORE (0-100):
-Weighted combination:
-- tech_match 50%
-- seniority_match 30%
-- keyword_match 20%
+3. EXPERIENCE FIT (0–100)
+Compare required seniority vs candidate experience.
 
 ---
 
-DECISION RULES:
-- 80-100 → "apply"
-- 50-79 → "review"
-- 0-49 → "skip"
+STRICT SCORING RULES:
+
+- If missing >50% of required skills → MUST NOT exceed 40 score
+- If seniority mismatch (senior job vs junior candidate) → cap at 60
+- If strong match → allow high score (>80)
 
 ---
 
-RETURN ONLY VALID JSON:
+FINAL SCORE (0–100):
+Weighted:
+- must_have_match 60%
+- role_fit 25%
+- experience_fit 15%
+
+---
+
+DECISION LOGIC:
+
+- 80–100 → "apply"
+- 60–79 → "review"
+- 0–59 → "skip"
+
+IMPORTANT:
+- Be conservative, prefer false negatives over false positives.
+
+---
+
+RETURN STRICT JSON ONLY:
 
 {
-  "tech_match": number,
-  "seniority_match": number,
-  "keyword_match": number,
+  "must_have_match": number,
+  "role_fit": number,
+  "experience_fit": number,
   "score": number,
   "decision": "apply" | "review" | "skip",
   "strengths": [string],
@@ -64,5 +81,3 @@ RETURN ONLY VALID JSON:
 }
 `;
 }
-
-module.exports = { buildJobScorePrompt };
