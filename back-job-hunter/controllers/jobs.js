@@ -1,38 +1,64 @@
-const db = require("../config/database");
+const { supabase } = require("../config/supabase");
 
 // GET all jobs
-exports.getJobs = (req, res) => {
-  db.query("SELECT * FROM jobs ORDER BY created_at DESC", (err, result) => {
-    if (err) return res.status(500).json(err);
-    res.json(result);
-  });
+exports.getJobs = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) return res.status(500).json(error);
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };
 
 // GET job by id
-exports.getJobById = (req, res) => {
-  const { id } = req.params;
+exports.getJobById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  db.query("SELECT * FROM jobs WHERE id = ?", [id], (err, result) => {
-    if (err) return res.status(500).json(err);
-    res.json(result[0]);
-  });
+    const { data, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) return res.status(500).json(error);
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };
 
-// CREATE job (scraping manual o automático)
-exports.createJob = (req, res) => {
-  const { title, company, location, description, url, source } = req.body;
+// CREATE job
+exports.createJob = async (req, res) => {
+  try {
+    const { title, company, location, description, url, source } = req.body;
 
-  const sql = `
-    INSERT INTO jobs (title, company, location, description, url, source)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
+    const { data, error } = await supabase
+      .from("jobs")
+      .insert([
+        {
+          title,
+          company,
+          location,
+          description,
+          url,
+          source,
+        },
+      ])
+      .select("id")
+      .single();
 
-  db.query(
-    sql,
-    [title, company, location, description, url, source],
-    (err, result) => {
-      if (err) return res.status(500).json(err);
-      res.json({ id: result.insertId });
-    }
-  );
+    if (error) return res.status(500).json(error);
+
+    res.json({ id: data.id });
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };

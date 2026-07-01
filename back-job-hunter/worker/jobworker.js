@@ -1,37 +1,34 @@
 const cron = require("node-cron");
-const db = require("../config/database");
+const { supabase } = require("../config/supabase");
 const { analyzeJob } = require("../services/ai.service");
 
-// 1. obtener jobs nuevos (NO mock en producción)
-function fetchJobs() {
-  return new Promise((resolve, reject) => {
-    db.query(
-      "SELECT * FROM jobs WHERE id NOT IN (SELECT job_id FROM job_scores)",
-      (err, results) => {
-        if (err) return reject(err);
-        resolve(results);
-      }
+// 1. obtener jobs nuevos
+async function fetchJobs() {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select("*")
+    .not(
+      "id",
+      "in",
+      `(select job_id from job_scores)`
     );
-  });
+
+  if (error) throw error;
+  return data || [];
 }
 
 // 2. guardar score real
-function saveScore(jobId, result) {
-  return new Promise((resolve, reject) => {
-    const sql = `
-      INSERT INTO job_scores (job_id, score, decision, reason)
-      VALUES (?, ?, ?, ?)
-    `;
+async function saveScore(jobId, result) {
+  const { error } = await supabase.from("job_scores").insert([
+    {
+      job_id: jobId,
+      score: result.score,
+      decision: result.decision,
+      reason: result.reason,
+    },
+  ]);
 
-    db.query(
-      sql,
-      [jobId, result.score, result.decision, result.reason],
-      (err) => {
-        if (err) return reject(err);
-        resolve();
-      }
-    );
-  });
+  if (error) throw error;
 }
 
 // 3. pipeline

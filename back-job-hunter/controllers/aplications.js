@@ -1,48 +1,67 @@
-const db = require("../config/database");
+const { supabase } = require("../config/supabase");
 
-// GET all applications
-exports.getApplications = (req, res) => {
-  const sql = `
-    SELECT a.*, j.title, j.company
-    FROM applications a
-    JOIN jobs j ON a.job_id = j.id
-    ORDER BY a.created_at DESC
-  `;
+// GET all applications (con join a jobs)
+exports.getApplications = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("applications")
+      .select(`
+        *,
+        jobs (
+          title,
+          company,
+          location,
+          url
+        )
+      `)
+      .order("created_at", { ascending: false });
 
-  db.query(sql, (err, result) => {
-    if (err) return res.status(500).json(err);
-    res.json(result);
-  });
+    if (error) return res.status(500).json(error);
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };
 
-// APPROVE job
-exports.approveJob = (req, res) => {
-  const { jobId } = req.params;
+// APPROVE job (crea evento, no sobrescribe)
+exports.approveJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
 
-  const sql = `
-    INSERT INTO applications (job_id, status)
-    VALUES (?, 'approved')
-    ON DUPLICATE KEY UPDATE status='approved'
-  `;
+    const { error } = await supabase.from("applications").insert([
+      {
+        job_id: jobId,
+        status: "approved",
+        applied_at: null,
+      },
+    ]);
 
-  db.query(sql, [jobId], (err) => {
-    if (err) return res.status(500).json(err);
+    if (error) return res.status(500).json(error);
+
     res.json({ message: "Job approved" });
-  });
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };
 
-// REJECT job
-exports.rejectJob = (req, res) => {
-  const { jobId } = req.params;
+// REJECT job (crea evento, no sobrescribe)
+exports.rejectJob = async (req, res) => {
+  try {
+    const { jobId } = req.params;
 
-  const sql = `
-    INSERT INTO applications (job_id, status)
-    VALUES (?, 'rejected')
-    ON DUPLICATE KEY UPDATE status='rejected'
-  `;
+    const { error } = await supabase.from("applications").insert([
+      {
+        job_id: jobId,
+        status: "rejected",
+        applied_at: null,
+      },
+    ]);
 
-  db.query(sql, [jobId], (err) => {
-    if (err) return res.status(500).json(err);
+    if (error) return res.status(500).json(error);
+
     res.json({ message: "Job rejected" });
-  });
+  } catch (err) {
+    res.status(500).json(err);
+  }
 };
